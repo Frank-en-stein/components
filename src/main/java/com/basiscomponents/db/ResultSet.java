@@ -77,10 +77,14 @@ public class ResultSet implements java.io.Serializable, Iterable<DataRow> {
 
 	private SQLResultSet sqlResultSet = null;
 	private static final Logger LOGGER = Logger.getLogger(ResultSet.class.getName());
+	
+	private ResultSetListener mListener;
+
 
 	public ResultSet() {
 	}
-	private ResultSet(List<HashMap<String, Object>> metaData, List<String> columnNames, List<DataRow> dataRows,
+	
+	public ResultSet(List<HashMap<String, Object>> metaData, List<String> columnNames, List<DataRow> dataRows,
 			List<String> keyColumns) {
 		this.MetaData = new ArrayList<>(metaData);
 		this.ColumnNames = new ArrayList<>(columnNames);
@@ -88,7 +92,7 @@ public class ResultSet implements java.io.Serializable, Iterable<DataRow> {
 		this.KeyColumns = new ArrayList<>(keyColumns);
 	}
 
-	private ResultSet(List<HashMap<String, Object>> metaData, List<String> columnNames, List<String> keyColumns) {
+	public ResultSet(List<HashMap<String, Object>> metaData, List<String> columnNames, List<String> keyColumns) {
 		this.MetaData = new ArrayList<>(metaData);
 		this.ColumnNames = new ArrayList<>(columnNames);
 		this.KeyColumns = new ArrayList<>(keyColumns);
@@ -286,6 +290,13 @@ public class ResultSet implements java.io.Serializable, Iterable<DataRow> {
 
 	}
 
+	
+	public void registerResultSetListener(ResultSetListener mListener) 
+	{ 
+		this.mListener = mListener; 
+	} 
+
+
 	/**
 	 * Initializes the ResultSet using the metadata and Data from the given java.sql.ResultSet.
 	 * 
@@ -413,6 +424,7 @@ public class ResultSet implements java.io.Serializable, Iterable<DataRow> {
 		int rowId = 0;
 		while (rs.next()) {
 			DataRow dr = DataRow.newInstance(this);
+			
 			Iterator<HashMap.Entry<Integer, String>> it = columns.entrySet().iterator();
 			column = 0;
 			while (it.hasNext()) {
@@ -431,8 +443,13 @@ public class ResultSet implements java.io.Serializable, Iterable<DataRow> {
 			}
 
 			dr.setRowID(rowId);
-			this.DataRows.add(dr);
-			rowId++;
+			if (this.mListener != null) { 
+				dr = mListener.processRow(dr); 
+			} 
+			if (dr != null) {
+				this.DataRows.add(dr);
+				rowId++;
+			}
 		}
 
 		// Add meta data to the first row only
@@ -854,8 +871,24 @@ public class ResultSet implements java.io.Serializable, Iterable<DataRow> {
 	 * @param column The column index
 	 */
 	public void removeColumn(int column) {
-		this.ColumnNames.remove(column);
-		this.MetaData.remove(column);
+		String name = getColumnName(column);
+		if (!name.isEmpty()) {
+			this.ColumnNames.remove(column);
+			this.MetaData.remove(column);
+			if (this.KeyColumns != null && this.KeyColumns.contains(name))
+				this.KeyColumns.remove(name);
+		}
+	}
+
+	/**
+	 * Removes the column with the given name.
+	 * 
+	 * @param name The column name
+	 */
+	public void removeColumn(String name) {
+		int column = getColumnIndex(name);
+		if (column != -1)
+			removeColumn(column);
 	}
 
 	/**
@@ -2006,7 +2039,7 @@ public class ResultSet implements java.io.Serializable, Iterable<DataRow> {
 	 * @throws Exception Gets thrown in case the JSON String could not be created.
 	 */
 	public String toJson() throws Exception {
-			return toJson(true,null, true);
+			return toJson(true, null, true);
 	}
 
 	/**
@@ -2042,7 +2075,7 @@ public class ResultSet implements java.io.Serializable, Iterable<DataRow> {
 	public String toJson(boolean meta, String addIndexColumn, boolean trimStrings) throws Exception {
 		if (addIndexColumn!=null)
 			createIndex();
-		return toJson(meta , addIndexColumn, trimStrings, false);
+		return toJson(meta, addIndexColumn, trimStrings, false);
 	}
 	/**
 	 *
@@ -2055,7 +2088,7 @@ public class ResultSet implements java.io.Serializable, Iterable<DataRow> {
 	public String toJson(boolean meta, String addIndexColumn, boolean trimStrings, boolean writeDataRowAttributes) throws Exception {
 		if (addIndexColumn!=null)
 			createIndex();
-		return ResultSetJsonMapper.toJson(this,meta , addIndexColumn, trimStrings, writeDataRowAttributes);
+		return ResultSetJsonMapper.toJson(this, meta, addIndexColumn, trimStrings, writeDataRowAttributes);
 	}
 	/**
 	 * Returns this ResultSet as a JRDataSource

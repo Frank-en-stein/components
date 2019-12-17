@@ -1,19 +1,5 @@
 package com.basiscomponents.db.util;
 
-import java.io.IOException;
-import java.io.StringWriter;
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.TimeZone;
-import java.util.function.Consumer;
-
 import com.basiscomponents.db.BBArrayList;
 import com.basiscomponents.db.DataField;
 import com.basiscomponents.db.DataRow;
@@ -23,6 +9,18 @@ import com.basiscomponents.json.ComponentsCharacterEscapes;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParseException;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.text.ParseException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.TimeZone;
 
 public class ResultSetJsonMapper {
 
@@ -226,12 +224,11 @@ public class ResultSetJsonMapper {
 				jsonGenerator.writeStringField(fieldName, "");
 			else
 				jsonGenerator.writeBooleanField(fieldName, value.getBoolean());
-
 			break;
 
 		case java.sql.Types.TIMESTAMP:
 		case java.sql.Types.TIMESTAMP_WITH_TIMEZONE:
-		case 11:
+		case 11: // BASIS Timestamp
 			if (value.getTimestamp() == null)
 				jsonGenerator.writeStringField(fieldName, "");
 			else {
@@ -283,8 +280,9 @@ public class ResultSetJsonMapper {
 				jsonGenerator.writeStringField(fieldName, str_ts);
 			}
 			break;
+			
 		case java.sql.Types.DATE:
-		case 9:
+		case 9: // BASIS Date
 			if (value.getDate() == null)
 				jsonGenerator.writeStringField(fieldName, "");
 			else {
@@ -292,6 +290,15 @@ public class ResultSetJsonMapper {
 				// adding T00:00:00 for JavaScript to understand the correct order of day and
 				// month
 				// see https://github.com/BBj-Plugins/BBjGridExWidget/issues/89
+			}
+			break;
+
+		case java.sql.Types.TIME:
+		case java.sql.Types.TIME_WITH_TIMEZONE:
+			if (value.getTime() == null)
+				jsonGenerator.writeStringField(fieldName, "");
+			else {
+				jsonGenerator.writeStringField(fieldName, value.getTime().toString());
 			}
 			break;
 
@@ -312,13 +319,11 @@ public class ResultSetJsonMapper {
 		case java.sql.Types.ROWID:
 		case java.sql.Types.SQLXML:
 		case java.sql.Types.STRUCT:
-		case java.sql.Types.TIME:
-		case java.sql.Types.TIME_WITH_TIMEZONE:
 		case java.sql.Types.VARBINARY:
 
 		default:
 			// this is a noop - TODO
-			System.err.println("unknown column type: " + fieldType);
+			System.err.println("Resutset::toJson unknown column type: " + fieldType);
 			break;
 
 		}// switch
@@ -419,7 +424,7 @@ public class ResultSetJsonMapper {
 		} catch (Exception e) {
 			atr = null;
 		}
-		return Optional.of(atr);
+		return Optional.ofNullable(atr);
 	}
 
 	private static void splitJsonArray(String json, SplitJsonCallback<String> callback) throws ParseException, IOException {
